@@ -4,59 +4,47 @@ import tensorflow as tf
 from PIL import Image
 import string
 
-from streamlit_drawable_canvas import st_canvas
-
 mnist_model = tf.keras.models.load_model("mnist_model.keras")
 emnist_model = tf.keras.models.load_model("emnist_model.keras")
 
 letters = list(string.ascii_uppercase)
 
-
-st.title("Handwritten Recognition (Draw & Predict)")
+st.title("Handwritten Recognition (Upload & Predict)")
 
 option = st.selectbox(
     "Choose Model",
     ["Digit (MNIST)", "Character (EMNIST)"]
 )
 
-st.write("Draw below and click Predict")
+st.write("Upload a handwritten image (prefer black text on white background)")
 
-canvas_result = st_canvas(
-    fill_color="black",
-    stroke_width=10,
-    stroke_color="white",
-    background_color="black",
-    height=280,
-    width=280,
-    drawing_mode="freedraw",
-    key="canvas"
-)
+uploaded_file = st.file_uploader("Choose an image", type=["png", "jpg", "jpeg"])
 
+def preprocess_image(image):
+    image = image.convert("L")          # grayscale
+    image = image.resize((28, 28))      # MNIST/EMNIST size
+    img_array = np.array(image)
 
-if st.button("Predict"):
+    img_array = img_array.reshape(1, 28, 28, 1)
+    img_array = img_array / 255.0
 
-    if canvas_result.image_data is not None:
+    return img_array
 
-        img = canvas_result.image_data
+if uploaded_file is not None:
+    image = Image.open(uploaded_file)
 
-        # convert to grayscale
-        img = Image.fromarray((img[:, :, 0]).astype(np.uint8))
-        img = img.resize((28, 28))
+    st.image(image, caption="Uploaded Image", width=200)
 
-        img_array = np.array(img)
-        img_array = img_array.reshape(1, 28, 28, 1)
-        img_array = img_array / 255.0
+    img_array = preprocess_image(image)
+
+    if st.button("Predict"):
 
         if option == "Digit (MNIST)":
-
             prediction = mnist_model.predict(img_array)
             result = np.argmax(prediction)
-
             st.success(f"Predicted Digit: {result}")
 
         else:
-
             prediction = emnist_model.predict(img_array)
             result = np.argmax(prediction)
-
             st.success(f"Predicted Letter: {letters[result]}")
